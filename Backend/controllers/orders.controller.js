@@ -2,7 +2,7 @@ const db = require('../config/db');
 
 // Helper function to get user's cart
 const getUserCart = async (userId) => {
-  const [carts] = await db.query('SELECT cart_id FROM Carts WHERE user_id = ?', [userId]);
+  const [carts] = await db.query('SELECT cart_id FROM carts WHERE user_id = ?', [userId]);
   if (carts.length === 0) return null;
   return carts[0].cart_id;
 };
@@ -43,8 +43,8 @@ const checkout = async (req, res) => {
       // Get cart items
       const [cartItems] = await db.query(
         `SELECT ci.isbn, ci.quantity, b.price, b.stock_quantity, b.title
-         FROM Cart_Items ci
-         JOIN Books b ON ci.isbn = b.isbn
+         FROM cart_items ci
+         JOIN books b ON ci.isbn = b.isbn
          WHERE ci.cart_id = ?`,
         [cartId]
       );
@@ -69,7 +69,7 @@ const checkout = async (req, res) => {
 
       // Create order
       const [orderResult] = await db.query(
-        `INSERT INTO Orders (user_id, order_date, total_price)
+        `INSERT INTO orders (user_id, order_date, total_price)
          VALUES (?, NOW(), ?)`,
         [userId, total]
       );
@@ -79,15 +79,15 @@ const checkout = async (req, res) => {
       // Create order items (trigger will handle stock reduction)
       for (const item of cartItems) {
         await db.query(
-          `INSERT INTO Order_Items (order_id, isbn, quantity, price_at_purchase)
+          `INSERT INTO order_items (order_id, isbn, quantity, price_at_purchase)
            VALUES (?, ?, ?, ?)`,
           [orderId, item.isbn, item.quantity, item.price]
         );
       }
 
       // Clear cart (delete cart items and cart)
-      await db.query('DELETE FROM Cart_Items WHERE cart_id = ?', [cartId]);
-      await db.query('DELETE FROM Carts WHERE cart_id = ?', [cartId]);
+      await db.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+      await db.query('DELETE FROM carts WHERE cart_id = ?', [cartId]);
 
       await db.query('COMMIT');
 
@@ -113,7 +113,7 @@ const getPastOrders = async (req, res) => {
 
     const [orders] = await db.query(
       `SELECT o.order_id, o.order_date, o.total_price
-       FROM Orders o
+       FROM orders o
        WHERE o.user_id = ?
        ORDER BY o.order_date DESC`,
       [userId]
@@ -126,10 +126,10 @@ const getPastOrders = async (req, res) => {
           `SELECT oi.isbn, b.title, oi.quantity, oi.price_at_purchase,
                   (oi.quantity * oi.price_at_purchase) as item_total,
                   GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as authors
-           FROM Order_Items oi
-           JOIN Books b ON oi.isbn = b.isbn
-           LEFT JOIN Book_Authors ba ON b.isbn = ba.isbn
-           LEFT JOIN Authors a ON ba.author_id = a.author_id
+           FROM order_items oi
+           JOIN books b ON oi.isbn = b.isbn
+           LEFT JOIN book_authors ba ON b.isbn = ba.isbn
+           LEFT JOIN authors a ON ba.author_id = a.author_id
            WHERE oi.order_id = ?
            GROUP BY oi.isbn, b.title, oi.quantity, oi.price_at_purchase`,
           [order.order_id]
@@ -156,7 +156,7 @@ const confirmOrder = async (req, res) => {
 
     // Check if order exists and is pending
     const [orders] = await db.query(
-      'SELECT * FROM Publisher_Orders WHERE order_id = ?',
+      'SELECT * FROM publisher_orders WHERE order_id = ?',
       [orderId]
     );
 
@@ -175,7 +175,7 @@ const confirmOrder = async (req, res) => {
     try {
       // Update order status to confirmed (trigger will add quantity to stock)
       await db.query(
-        'UPDATE Publisher_Orders SET order_status = "Confirmed" WHERE order_id = ?',
+        'UPDATE publisher_orders SET order_status = "Confirmed" WHERE order_id = ?',
         [orderId]
       );
 
@@ -196,8 +196,8 @@ const getAllBookOrders = async (req, res) => {
   try {
     const [orders] = await db.query(
       `SELECT po.*, b.title
-       FROM Publisher_Orders po
-       JOIN Books b ON po.isbn = b.isbn
+       FROM publisher_orders po
+       JOIN books b ON po.isbn = b.isbn
        ORDER BY po.order_date DESC`
     );
 
@@ -213,7 +213,7 @@ const getSalesLastMonth = async (req, res) => {
   try {
     const [result] = await db.query(
       `SELECT SUM(total_price) as total_sales
-       FROM Orders
+       FROM orders
        WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
        AND order_date < CURDATE()`
     );
@@ -238,7 +238,7 @@ const getSalesByDate = async (req, res) => {
 
     const [result] = await db.query(
       `SELECT SUM(total_price) as total_sales
-       FROM Orders
+       FROM orders
        WHERE DATE(order_date) = ?`,
       [date]
     );
@@ -258,8 +258,8 @@ const getTopCustomers = async (req, res) => {
     const [customers] = await db.query(
       `SELECT u.user_id, u.email, u.first_name, u.last_name,
               SUM(o.total_price) as total_purchases
-       FROM Users u
-       JOIN Orders o ON u.user_id = o.user_id
+       FROM users u
+       JOIN orders o ON u.user_id = o.user_id
        WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
        GROUP BY u.user_id, u.email, u.first_name, u.last_name
        ORDER BY total_purchases DESC
@@ -278,9 +278,9 @@ const getTopSellingBooks = async (req, res) => {
     const [books] = await db.query(
       `SELECT b.isbn, b.title,
               SUM(oi.quantity) as total_sold
-       FROM Books b
-       JOIN Order_Items oi ON b.isbn = oi.isbn
-       JOIN Orders o ON oi.order_id = o.order_id
+       FROM books b
+       JOIN order_items oi ON b.isbn = oi.isbn
+       JOIN orders o ON oi.order_id = o.order_id
        WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
        GROUP BY b.isbn, b.title
        ORDER BY total_sold DESC
@@ -300,13 +300,13 @@ const getBookOrderCount = async (req, res) => {
 
     const [result] = await db.query(
       `SELECT COUNT(*) as order_count
-       FROM Publisher_Orders
+       FROM publisher_orders
        WHERE isbn = ?`,
       [isbn]
     );
 
     const [bookInfo] = await db.query(
-      'SELECT title FROM Books WHERE isbn = ?',
+      'SELECT title FROM books WHERE isbn = ?',
       [isbn]
     );
 

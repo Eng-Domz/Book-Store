@@ -14,7 +14,7 @@ const signup = async (req, res) => {
 
     // Check if email already exists
     const [existingUsers] = await db.query(
-      'SELECT user_id FROM Users WHERE email = ?',
+      'SELECT user_id FROM users WHERE email = ?',
       [email]
     );
 
@@ -27,7 +27,7 @@ const signup = async (req, res) => {
 
     // Insert new user
     const [result] = await db.query(
-      `INSERT INTO Users (email, password, first_name, last_name, phone, address, user_type)
+      `INSERT INTO users (email, password, first_name, last_name, phone, address, user_type)
        VALUES (?, ?, ?, ?, ?, ?, 'CUSTOMER')`,
       [email, hashedPassword, firstName, lastName, phone, address]
     );
@@ -60,7 +60,7 @@ const login = async (req, res) => {
 
     // Find user
     const [users] = await db.query(
-      'SELECT user_id, email, password, user_type FROM Users WHERE email = ?',
+      'SELECT user_id, email, password, user_type FROM users WHERE email = ?',
       [email]
     );
 
@@ -135,7 +135,7 @@ const updateProfile = async (req, res) => {
     values.push(userId);
 
     await db.query(
-      `UPDATE Users SET ${updates.join(', ')} WHERE user_id = ?`,
+      `UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`,
       values
     );
 
@@ -152,7 +152,7 @@ const getProfile = async (req, res) => {
     const userId = req.user.user_id;
 
     const [users] = await db.query(
-      'SELECT user_id, first_name, last_name, email, phone, address, user_type FROM Users WHERE user_id = ?',
+      'SELECT user_id, first_name, last_name, email, phone, address, user_type FROM users WHERE user_id = ?',
       [userId]
     );
 

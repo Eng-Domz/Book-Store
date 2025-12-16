@@ -2,10 +2,10 @@ const db = require('../config/db');
 
 // Helper function to get or create cart for user
 const getOrCreateCart = async (userId) => {
-  let [carts] = await db.query('SELECT cart_id FROM Carts WHERE user_id = ?', [userId]);
+  let [carts] = await db.query('SELECT cart_id FROM carts WHERE user_id = ?', [userId]);
   
   if (carts.length === 0) {
-    const [result] = await db.query('INSERT INTO Carts (user_id) VALUES (?)', [userId]);
+    const [result] = await db.query('INSERT INTO carts (user_id) VALUES (?)', [userId]);
     return result.insertId;
   }
   
@@ -24,7 +24,7 @@ const addToCart = async (req, res) => {
 
     // Check if book exists and is available
     const [books] = await db.query(
-      'SELECT isbn, title, price, stock_quantity FROM Books WHERE isbn = ?',
+      'SELECT isbn, title, price, stock_quantity FROM books WHERE isbn = ?',
       [isbn]
     );
 
@@ -42,7 +42,7 @@ const addToCart = async (req, res) => {
 
     // Check if item already in cart
     const [existingItems] = await db.query(
-      'SELECT quantity FROM Cart_Items WHERE cart_id = ? AND isbn = ?',
+      'SELECT quantity FROM cart_items WHERE cart_id = ? AND isbn = ?',
       [cartId, isbn]
     );
 
@@ -53,14 +53,14 @@ const addToCart = async (req, res) => {
         return res.status(400).json({ error: 'Insufficient stock available' });
       }
       await db.query(
-        'UPDATE Cart_Items SET quantity = ? WHERE cart_id = ? AND isbn = ?',
+        'UPDATE cart_items SET quantity = ? WHERE cart_id = ? AND isbn = ?',
         [newQuantity, cartId, isbn]
       );
       res.json({ message: 'Cart updated successfully' });
     } else {
       // Add new item
       await db.query(
-        'INSERT INTO Cart_Items (cart_id, isbn, quantity) VALUES (?, ?, ?)',
+        'INSERT INTO cart_items (cart_id, isbn, quantity) VALUES (?, ?, ?)',
         [cartId, isbn, quantity]
       );
       res.json({ message: 'Item added to cart successfully' });
@@ -77,7 +77,7 @@ const viewCart = async (req, res) => {
     const userId = req.user.user_id;
 
     // Get user's cart
-    const [carts] = await db.query('SELECT cart_id FROM Carts WHERE user_id = ?', [userId]);
+    const [carts] = await db.query('SELECT cart_id FROM carts WHERE user_id = ?', [userId]);
     
     if (carts.length === 0) {
       return res.json({ cartItems: [], total: '0.00' });
@@ -89,10 +89,10 @@ const viewCart = async (req, res) => {
       `SELECT ci.isbn, b.title, b.price, ci.quantity,
               (b.price * ci.quantity) as item_total,
               GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as authors
-       FROM Cart_Items ci
-       JOIN Books b ON ci.isbn = b.isbn
-       LEFT JOIN Book_Authors ba ON b.isbn = ba.isbn
-       LEFT JOIN Authors a ON ba.author_id = a.author_id
+       FROM cart_items ci
+       JOIN books b ON ci.isbn = b.isbn
+       LEFT JOIN book_authors ba ON b.isbn = ba.isbn
+       LEFT JOIN authors a ON ba.author_id = a.author_id
        WHERE ci.cart_id = ?
        GROUP BY ci.isbn, b.title, b.price, ci.quantity`,
       [cartId]
@@ -118,7 +118,7 @@ const removeFromCart = async (req, res) => {
     const { isbn } = req.params;
 
     // Get user's cart
-    const [carts] = await db.query('SELECT cart_id FROM Carts WHERE user_id = ?', [userId]);
+    const [carts] = await db.query('SELECT cart_id FROM carts WHERE user_id = ?', [userId]);
     if (carts.length === 0) {
       return res.status(404).json({ error: 'Cart not found' });
     }
@@ -126,7 +126,7 @@ const removeFromCart = async (req, res) => {
     const cartId = carts[0].cart_id;
 
     const [result] = await db.query(
-      'DELETE FROM Cart_Items WHERE cart_id = ? AND isbn = ?',
+      'DELETE FROM cart_items WHERE cart_id = ? AND isbn = ?',
       [cartId, isbn]
     );
 
@@ -153,7 +153,7 @@ const updateCartQuantity = async (req, res) => {
     }
 
     // Get user's cart
-    const [carts] = await db.query('SELECT cart_id FROM Carts WHERE user_id = ?', [userId]);
+    const [carts] = await db.query('SELECT cart_id FROM carts WHERE user_id = ?', [userId]);
     if (carts.length === 0) {
       return res.status(404).json({ error: 'Cart not found' });
     }
@@ -163,8 +163,8 @@ const updateCartQuantity = async (req, res) => {
     // Get cart item and check stock
     const [cartItems] = await db.query(
       `SELECT ci.isbn, b.stock_quantity 
-       FROM Cart_Items ci 
-       JOIN Books b ON ci.isbn = b.isbn 
+       FROM cart_items ci 
+       JOIN books b ON ci.isbn = b.isbn 
        WHERE ci.cart_id = ? AND ci.isbn = ?`,
       [cartId, isbn]
     );
@@ -178,7 +178,7 @@ const updateCartQuantity = async (req, res) => {
     }
 
     await db.query(
-      'UPDATE Cart_Items SET quantity = ? WHERE cart_id = ? AND isbn = ?',
+      'UPDATE cart_items SET quantity = ? WHERE cart_id = ? AND isbn = ?',
       [quantity, cartId, isbn]
     );
 

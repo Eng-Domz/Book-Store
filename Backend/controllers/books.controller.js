@@ -17,13 +17,13 @@ const addBook = async (req, res) => {
     }
 
     // Check if ISBN already exists
-    const [existingBooks] = await db.query('SELECT isbn FROM Books WHERE isbn = ?', [isbn]);
+    const [existingBooks] = await db.query('SELECT isbn FROM books WHERE isbn = ?', [isbn]);
     if (existingBooks.length > 0) {
       return res.status(400).json({ error: 'Book with this ISBN already exists' });
     }
 
     // Check if publisher exists
-    const [publishers] = await db.query('SELECT name FROM Publishers WHERE name = ?', [publisherName]);
+    const [publishers] = await db.query('SELECT name FROM publishers WHERE name = ?', [publisherName]);
     if (publishers.length === 0) {
       return res.status(400).json({ error: 'Publisher does not exist. Please create publisher first.' });
     }
@@ -34,7 +34,7 @@ const addBook = async (req, res) => {
     try {
       // Insert book
       await db.query(
-        `INSERT INTO Books (isbn, title, publisher_name, publication_year, price, category, stock_quantity, threshold)
+        `INSERT INTO books (isbn, title, publisher_name, publication_year, price, category, stock_quantity, threshold)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [isbn, title, publisherName, publicationYear, price, category, stockQuantity, threshold]
       );
@@ -43,18 +43,18 @@ const addBook = async (req, res) => {
       const authorArray = Array.isArray(authors) ? authors : [authors];
       for (const authorName of authorArray) {
         // Check if author exists, if not create it
-        let [authorRows] = await db.query('SELECT author_id FROM Authors WHERE author_name = ?', [authorName]);
+        let [authorRows] = await db.query('SELECT author_id FROM authors WHERE author_name = ?', [authorName]);
         let authorId;
 
         if (authorRows.length === 0) {
-          const [result] = await db.query('INSERT INTO Authors (author_name) VALUES (?)', [authorName]);
+          const [result] = await db.query('INSERT INTO authors (author_name) VALUES (?)', [authorName]);
           authorId = result.insertId;
         } else {
           authorId = authorRows[0].author_id;
         }
 
         // Link book to author
-        await db.query('INSERT INTO Book_Authors (isbn, author_id) VALUES (?, ?)', [isbn, authorId]);
+        await db.query('INSERT INTO book_authors (isbn, author_id) VALUES (?, ?)', [isbn, authorId]);
       }
 
       await db.query('COMMIT');
@@ -76,7 +76,7 @@ const updateBook = async (req, res) => {
     const { title, authors, publisherName, publicationYear, price, category, stockQuantity } = req.body;
 
     // Check if book exists
-    const [books] = await db.query('SELECT * FROM Books WHERE isbn = ?', [isbn]);
+    const [books] = await db.query('SELECT * FROM books WHERE isbn = ?', [isbn]);
     if (books.length === 0) {
       return res.status(404).json({ error: 'Book not found' });
     }
@@ -124,26 +124,26 @@ const updateBook = async (req, res) => {
     values.push(isbn);
 
     await db.query(
-      `UPDATE Books SET ${updates.join(', ')} WHERE isbn = ?`,
+      `UPDATE books SET ${updates.join(', ')} WHERE isbn = ?`,
       values
     );
 
     // Update authors if provided
     if (authors) {
-      await db.query('DELETE FROM Book_Authors WHERE isbn = ?', [isbn]);
+      await db.query('DELETE FROM book_authors WHERE isbn = ?', [isbn]);
       const authorArray = Array.isArray(authors) ? authors : [authors];
       for (const authorName of authorArray) {
-        let [authorRows] = await db.query('SELECT author_id FROM Authors WHERE author_name = ?', [authorName]);
+        let [authorRows] = await db.query('SELECT author_id FROM authors WHERE author_name = ?', [authorName]);
         let authorId;
 
         if (authorRows.length === 0) {
-          const [result] = await db.query('INSERT INTO Authors (author_name) VALUES (?)', [authorName]);
+          const [result] = await db.query('INSERT INTO authors (author_name) VALUES (?)', [authorName]);
           authorId = result.insertId;
         } else {
           authorId = authorRows[0].author_id;
         }
 
-        await db.query('INSERT INTO Book_Authors (isbn, author_id) VALUES (?, ?)', [isbn, authorId]);
+        await db.query('INSERT INTO book_authors (isbn, author_id) VALUES (?, ?)', [isbn, authorId]);
       }
     }
 
@@ -163,9 +163,9 @@ const searchBooks = async (req, res) => {
       SELECT DISTINCT b.isbn, b.title, b.publication_year, b.price, b.category, 
              b.stock_quantity, b.publisher_name,
              GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as authors
-      FROM Books b
-      LEFT JOIN Book_Authors ba ON b.isbn = ba.isbn
-      LEFT JOIN Authors a ON ba.author_id = a.author_id
+      FROM books b
+      LEFT JOIN book_authors ba ON b.isbn = ba.isbn
+      LEFT JOIN authors a ON ba.author_id = a.author_id
       WHERE 1=1
     `;
     const params = [];
@@ -216,10 +216,10 @@ const getBookByISBN = async (req, res) => {
     const [books] = await db.query(
       `SELECT b.*, p.address, p.phone,
               GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as authors
-       FROM Books b
-       LEFT JOIN Publishers p ON b.publisher_name = p.name
-       LEFT JOIN Book_Authors ba ON b.isbn = ba.isbn
-       LEFT JOIN Authors a ON ba.author_id = a.author_id
+       FROM books b
+       LEFT JOIN publishers p ON b.publisher_name = p.name
+       LEFT JOIN book_authors ba ON b.isbn = ba.isbn
+       LEFT JOIN authors a ON ba.author_id = a.author_id
        WHERE b.isbn = ?
        GROUP BY b.isbn`,
       [isbn]
@@ -245,10 +245,10 @@ const getAllBooks = async (req, res) => {
     const [books] = await db.query(
       `SELECT b.*, p.address, p.phone,
               GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as authors
-       FROM Books b
-       LEFT JOIN Publishers p ON b.publisher_name = p.name
-       LEFT JOIN Book_Authors ba ON b.isbn = ba.isbn
-       LEFT JOIN Authors a ON ba.author_id = a.author_id
+       FROM books b
+       LEFT JOIN publishers p ON b.publisher_name = p.name
+       LEFT JOIN book_authors ba ON b.isbn = ba.isbn
+       LEFT JOIN authors a ON ba.author_id = a.author_id
        GROUP BY b.isbn
        ORDER BY b.title`
     );

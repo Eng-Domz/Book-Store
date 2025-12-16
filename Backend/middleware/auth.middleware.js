@@ -17,7 +17,7 @@ const authenticate = async (req, res, next) => {
 
     // Verify user still exists in database
     const [users] = await db.query(
-      'SELECT user_id, email, user_type FROM Users WHERE user_id = ?',
+      'SELECT user_id, email, user_type FROM users WHERE user_id = ?',
       [decoded.userId]
     );
 
