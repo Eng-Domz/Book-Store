@@ -1,0 +1,167 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ordersAPI } from '../services/api';
+import { 
+  FiPackage, 
+  FiCheck, 
+  FiClock, 
+  FiBook,
+  FiCalendar,
+  FiArrowLeft,
+  FiLoader
+} from 'react-icons/fi';
+import './BookOrders.css';
+
+const BookOrders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [confirming, setConfirming] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const response = await ordersAPI.getAllBookOrders();
+      setOrders(response.data.orders || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load book orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmOrder = async (orderId) => {
+    setConfirming(orderId);
+    setError('');
+    setSuccess('');
+
+    try {
+      await ordersAPI.confirmOrder(orderId);
+      setSuccess('Order confirmed successfully!');
+      fetchOrders(); // Refresh the list
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to confirm order');
+    } finally {
+      setConfirming(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="container">
+          <div className="loading-container">
+            <FiLoader className="spinner-icon" />
+            <p>Loading book orders...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-container">
+      <div className="container">
+        <button onClick={() => navigate('/admin')} className="back-button">
+          <FiArrowLeft />
+          Back to Admin Panel
+        </button>
+
+        <div className="page-header">
+          <h1 className="page-title">Book Orders</h1>
+          <p className="page-subtitle">Manage publisher orders</p>
+        </div>
+
+        {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
+
+        {orders.length === 0 ? (
+          <div className="empty-state">
+            <FiPackage className="empty-state-icon" />
+            <p className="empty-state-text">No book orders found</p>
+            <p className="empty-state-subtext">All orders have been processed</p>
+          </div>
+        ) : (
+          <div className="book-orders-list">
+            {orders.map((order) => (
+              <div key={order.order_id} className="book-order-card glass-card fade-in">
+                <div className="order-card-header">
+                  <div className="order-id-section">
+                    <FiPackage className="order-icon" />
+                    <div>
+                      <div className="order-id-text">Order #{order.order_id}</div>
+                      <div className="order-date-text">
+                        <FiCalendar />
+                        {new Date(order.order_date).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`order-status ${order.order_status.toLowerCase()}`}>
+                    {order.order_status === 'Confirmed' ? (
+                      <FiCheck className="status-icon" />
+                    ) : (
+                      <FiClock className="status-icon" />
+                    )}
+                    <span>{order.order_status}</span>
+                  </div>
+                </div>
+
+                <div className="order-details">
+                  <div className="order-detail-item">
+                    <FiBook className="detail-icon" />
+                    <div>
+                      <div className="detail-label">Book Title</div>
+                      <div className="detail-value">{order.title}</div>
+                    </div>
+                  </div>
+                  <div className="order-detail-item">
+                    <FiBook className="detail-icon" />
+                    <div>
+                      <div className="detail-label">ISBN</div>
+                      <div className="detail-value">{order.isbn}</div>
+                    </div>
+                  </div>
+                  <div className="order-detail-item">
+                    <FiPackage className="detail-icon" />
+                    <div>
+                      <div className="detail-label">Quantity</div>
+                      <div className="detail-value">{order.quantity}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {order.order_status !== 'Confirmed' && (
+                  <div className="order-actions">
+                    <button
+                      onClick={() => handleConfirmOrder(order.order_id)}
+                      className="btn btn-primary"
+                      disabled={confirming === order.order_id}
+                    >
+                      {confirming === order.order_id ? (
+                        <div className="spinner" style={{ width: '20px', height: '20px', margin: '0' }} />
+                      ) : (
+                        <>
+                          <FiCheck />
+                          Confirm Order
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default BookOrders;
+

@@ -1,25 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { booksAPI } from '../services/api';
+import { FiBook, FiSave, FiArrowLeft } from 'react-icons/fi';
+import './BookForm.css';
 
 const EditBook = () => {
   const { isbn } = useParams();
   const navigate = useNavigate();
-  const [book, setBook] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
-    authors: [],
+    authors: '',
     publisherName: '',
     publicationYear: '',
     price: '',
     category: '',
-    stockQuantity: '',
-    threshold: '',
+    stockQuantity: ''
   });
-  const [authorsInput, setAuthorsInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const categories = ['Science', 'Art', 'Religion', 'History', 'Geography'];
 
   useEffect(() => {
     fetchBook();
@@ -28,185 +29,201 @@ const EditBook = () => {
   const fetchBook = async () => {
     try {
       const response = await booksAPI.getByISBN(isbn);
-      const bookData = response.data.book;
-      setBook(bookData);
+      const book = response.data.book;
       setFormData({
-        title: bookData.title || '',
-        authors: bookData.authors ? bookData.authors.split(', ') : [],
-        publisherName: bookData.publisher_name || '',
-        publicationYear: bookData.publication_year || '',
-        price: bookData.price || '',
-        category: bookData.category || '',
-        stockQuantity: bookData.stock_quantity || '',
-        threshold: bookData.threshold || '',
+        title: book.title || '',
+        authors: book.authors || '',
+        publisherName: book.publisher_name || '',
+        publicationYear: book.publication_year || '',
+        price: book.price || '',
+        category: book.category || '',
+        stockQuantity: book.stock_quantity || ''
       });
-      setAuthorsInput(bookData.authors || '');
-    } catch (error) {
-      console.error('Error fetching book:', error);
-      alert('Book not found');
-      navigate('/admin/books');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load book');
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleAuthorsChange = (e) => {
-    const value = e.target.value;
-    setAuthorsInput(value);
     setFormData({
       ...formData,
-      authors: value.split(',').map(a => a.trim()).filter(a => a),
+      [e.target.name]: e.target.value
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setSaving(true);
-    setMessage('');
 
     try {
-      const updateData = {
-        title: formData.title,
-        authors: formData.authors,
-        publisherName: formData.publisherName,
-        publicationYear: parseInt(formData.publicationYear),
-        price: parseFloat(formData.price),
-        category: formData.category,
-        stockQuantity: parseInt(formData.stockQuantity),
+      const submitData = {
+        ...formData,
+        authors: formData.authors.split(',').map(a => a.trim()).filter(a => a),
+        publicationYear: formData.publicationYear ? parseInt(formData.publicationYear) : undefined,
+        price: formData.price ? parseFloat(formData.price) : undefined,
+        stockQuantity: formData.stockQuantity ? parseInt(formData.stockQuantity) : undefined
       };
 
-      await booksAPI.update(isbn, updateData);
-      setMessage('Book updated successfully!');
-      setTimeout(() => {
-        navigate('/admin/books');
-      }, 1500);
-    } catch (error) {
-      setMessage(error.response?.data?.error || 'Failed to update book');
+      await booksAPI.update(isbn, submitData);
+      navigate('/admin/books');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update book');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="loading">Loading book details...</div>;
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="container">
+          <div className="loading-container">
+            <FiBook className="spinner-icon" />
+            <p>Loading book...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container">
-      <button onClick={() => navigate('/admin/books')} className="btn btn-secondary" style={{ marginBottom: '2rem' }}>
-        ← Back to Books
-      </button>
-      <div className="form-container">
-        <h2 style={{ marginBottom: '1.5rem', color: '#333', textAlign: 'center' }}>Edit Book</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>ISBN (cannot be changed):</label>
-            <input type="text" value={isbn} disabled style={{ backgroundColor: '#f0f0f0' }} />
+    <div className="page-container">
+      <div className="container">
+        <button onClick={() => navigate('/admin/books')} className="back-button">
+          <FiArrowLeft />
+          Back to Books
+        </button>
+
+        <div className="book-form-card glass-strong fade-in">
+          <div className="form-header">
+            <FiBook className="form-icon" />
+            <h1 className="form-title">Edit Book</h1>
+            <p className="form-subtitle">ISBN: {isbn}</p>
           </div>
-          <div className="form-group">
-            <label>Title:</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Authors (comma-separated):</label>
-            <input
-              type="text"
-              value={authorsInput}
-              onChange={handleAuthorsChange}
-              placeholder="Author1, Author2, Author3"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Publisher Name:</label>
-            <input
-              type="text"
-              name="publisherName"
-              value={formData.publisherName}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Publication Year:</label>
-            <input
-              type="number"
-              name="publicationYear"
-              value={formData.publicationYear}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Price:</label>
-            <input
-              type="number"
-              step="0.01"
-              name="price"
-              value={formData.price}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Category:</label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Category</option>
-              <option value="Science">Science</option>
-              <option value="Art">Art</option>
-              <option value="Religion">Religion</option>
-              <option value="History">History</option>
-              <option value="Geography">Geography</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Stock Quantity:</label>
-            <input
-              type="number"
-              name="stockQuantity"
-              value={formData.stockQuantity}
-              onChange={handleChange}
-              required
-              min="0"
-            />
-          </div>
-          <div className="form-group">
-            <label>Threshold:</label>
-            <input
-              type="number"
-              name="threshold"
-              value={formData.threshold}
-              onChange={handleChange}
-              required
-              min="0"
-            />
-          </div>
-          {message && (
-            <div className={message.includes('success') ? 'alert alert-success' : 'alert alert-error'}>
-              {message}
+
+          {error && <div className="error-message">{error}</div>}
+
+          <form onSubmit={handleSubmit} className="book-form">
+            <div className="form-row">
+              <div className="input-group">
+                <label className="input-label">Title</label>
+                <input
+                  type="text"
+                  name="title"
+                  className="input"
+                  value={formData.title}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Authors (comma-separated)</label>
+                <input
+                  type="text"
+                  name="authors"
+                  className="input"
+                  placeholder="Author 1, Author 2"
+                  value={formData.authors}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
-          )}
-          <button type="submit" disabled={saving} className="btn btn-primary" style={{ width: '100%' }}>
-            {saving ? 'Saving...' : '💾 Update Book'}
-          </button>
-        </form>
+
+            <div className="form-row">
+              <div className="input-group">
+                <label className="input-label">Publisher Name</label>
+                <input
+                  type="text"
+                  name="publisherName"
+                  className="input"
+                  value={formData.publisherName}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Publication Year</label>
+                <input
+                  type="number"
+                  name="publicationYear"
+                  className="input"
+                  value={formData.publicationYear}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="input-group">
+                <label className="input-label">Category</label>
+                <select
+                  name="category"
+                  className="input"
+                  value={formData.category}
+                  onChange={handleChange}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Price</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="price"
+                  className="input"
+                  value={formData.price}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">Stock Quantity</label>
+              <input
+                type="number"
+                name="stockQuantity"
+                className="input"
+                value={formData.stockQuantity}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                onClick={() => navigate('/admin/books')}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={saving}
+              >
+                {saving ? (
+                  <div className="spinner" style={{ width: '20px', height: '20px', margin: '0' }} />
+                ) : (
+                  <>
+                    <FiSave />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
 };
 
 export default EditBook;
-

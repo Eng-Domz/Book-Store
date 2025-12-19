@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { booksAPI } from '../services/api';
+import { FiBook, FiPlus, FiEdit2, FiTrash2, FiLoader } from 'react-icons/fi';
+import './AdminBooks.css';
 
 const AdminBooks = () => {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const navigate = useNavigate();
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchBooks();
@@ -15,94 +16,101 @@ const AdminBooks = () => {
   const fetchBooks = async () => {
     try {
       const response = await booksAPI.getAll();
-      setBooks(response.data.books);
-    } catch (error) {
-      console.error('Error fetching books:', error);
-      alert('Failed to load books');
+      setBooks(response.data.books || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load books');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredBooks = books.filter(book =>
-    book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    book.isbn.includes(searchTerm) ||
-    (book.authors && book.authors.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  if (loading) return <div className="loading">Loading books...</div>;
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="container">
+          <div className="loading-container">
+            <FiLoader className="spinner-icon" />
+            <p>Loading books...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h2 style={{ color: '#212529', fontSize: '2rem', fontWeight: '600' }}>Manage Books</h2>
-        <button
-          onClick={() => navigate('/admin/books/add')}
-          className="btn btn-success"
-        >
-          ➕ Add New Book
-        </button>
-      </div>
-
-      <div className="card" style={{ marginBottom: '2rem' }}>
-        <input
-          type="text"
-          placeholder="🔍 Search books by title, ISBN, or author..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '100%', padding: '0.75rem', border: '2px solid #e0e0e0', borderRadius: '8px', fontSize: '1rem' }}
-        />
-      </div>
-
-      {filteredBooks.length === 0 ? (
-        <div className="empty-state">
-          <p>No books found.</p>
+    <div className="page-container">
+      <div className="container">
+        <div className="admin-books-header">
+          <div>
+            <h1 className="page-title">Manage Books</h1>
+            <p className="page-subtitle">Add, edit, and manage your book inventory</p>
+          </div>
+          <Link to="/admin/books/add" className="btn btn-primary">
+            <FiPlus />
+            Add New Book
+          </Link>
         </div>
-      ) : (
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>ISBN</th>
-                <th>Title</th>
-                <th>Authors</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>Threshold</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBooks.map((book) => (
-                <tr key={book.isbn}>
-                  <td>{book.isbn}</td>
-                  <td>{book.title}</td>
-                  <td>{book.authors || 'N/A'}</td>
-                  <td>{book.category}</td>
-                  <td>${book.price}</td>
-                  <td style={{ color: book.stock_quantity < book.threshold ? '#dc3545' : '#28a745', fontWeight: '600' }}>
-                    {book.stock_quantity}
-                  </td>
-                  <td>{book.threshold}</td>
-                  <td>
-                    <button
-                      onClick={() => navigate(`/admin/books/edit/${book.isbn}`)}
-                      className="btn btn-primary"
-                      style={{ padding: '0.5rem 1rem', marginRight: '0.5rem' }}
+
+        {error && <div className="error-message">{error}</div>}
+
+        {books.length === 0 ? (
+          <div className="empty-state">
+            <FiBook className="empty-state-icon" />
+            <p className="empty-state-text">No books in inventory</p>
+            <Link to="/admin/books/add" className="btn btn-primary">
+              Add Your First Book
+            </Link>
+          </div>
+        ) : (
+          <div className="admin-books-table glass-strong fade-in">
+            <div className="table-header">
+              <div className="table-col-title">Title</div>
+              <div className="table-col">ISBN</div>
+              <div className="table-col">Category</div>
+              <div className="table-col">Price</div>
+              <div className="table-col">Stock</div>
+              <div className="table-col-actions">Actions</div>
+            </div>
+            <div className="table-body">
+              {books.map((book) => (
+                <div key={book.isbn} className="table-row">
+                  <div className="table-col-title">
+                    <div className="book-title-cell">
+                      <FiBook className="book-icon-small" />
+                      <div>
+                        <div className="book-title-text">{book.title}</div>
+                        <div className="book-authors-text">
+                          {book.authors || 'Unknown'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="table-col">{book.isbn}</div>
+                  <div className="table-col">
+                    <span className="category-badge">{book.category}</span>
+                  </div>
+                  <div className="table-col">${parseFloat(book.price).toFixed(2)}</div>
+                  <div className="table-col">
+                    <span className={`stock-badge ${book.stock_quantity > 0 ? 'in-stock' : 'out-of-stock'}`}>
+                      {book.stock_quantity}
+                    </span>
+                  </div>
+                  <div className="table-col-actions">
+                    <Link
+                      to={`/admin/books/edit/${book.isbn}`}
+                      className="action-btn edit-btn"
                     >
-                      ✏️ Edit
-                    </button>
-                  </td>
-                </tr>
+                      <FiEdit2 />
+                    </Link>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default AdminBooks;
-

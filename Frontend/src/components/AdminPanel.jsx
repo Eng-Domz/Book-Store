@@ -1,221 +1,155 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ordersAPI } from '../services/api';
-
-import { useNavigate } from 'react-router-dom';
+import { 
+  FiBarChart2, 
+  FiUsers, 
+  FiBook, 
+  FiPackage, 
+  FiTrendingUp,
+  FiCalendar,
+  FiDollarSign
+} from 'react-icons/fi';
+import './AdminPanel.css';
 
 const AdminPanel = () => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('orders');
-  const [bookOrders, setBookOrders] = useState([]);
-  const [reports, setReports] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    salesLastMonth: 0,
+    topCustomers: [],
+    topBooks: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const fetchBookOrders = async () => {
-    setLoading(true);
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
     try {
-      const response = await ordersAPI.getAllBookOrders();
-      setBookOrders(response.data.orders);
-    } catch (error) {
-      console.error('Error fetching book orders:', error);
+      const [salesRes, customersRes, booksRes] = await Promise.all([
+        ordersAPI.getSalesLastMonth(),
+        ordersAPI.getTopCustomers(),
+        ordersAPI.getTopBooks()
+      ]);
+
+      setStats({
+        salesLastMonth: salesRes.data.totalSales || 0,
+        topCustomers: customersRes.data.topCustomers || [],
+        topBooks: booksRes.data.topBooks || []
+      });
+    } catch (err) {
+      setError('Failed to load statistics');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchReports = async (type) => {
-    setLoading(true);
-    try {
-      let response;
-      switch (type) {
-        case 'lastMonth':
-          response = await ordersAPI.getSalesLastMonth();
-          setReports({ ...reports, lastMonth: response.data });
-          break;
-        case 'topCustomers':
-          response = await ordersAPI.getTopCustomers();
-          setReports({ ...reports, topCustomers: response.data.topCustomers });
-          break;
-        case 'topBooks':
-          response = await ordersAPI.getTopBooks();
-          setReports({ ...reports, topBooks: response.data.topBooks });
-          break;
-        default:
-          break;
-      }
-    } catch (error) {
-      console.error('Error fetching reports:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfirmOrder = async (orderId) => {
-    try {
-      await ordersAPI.confirmOrder(orderId);
-      alert('Order confirmed successfully!');
-      fetchBookOrders();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to confirm order');
-    }
-  };
-
-  if (activeTab === 'orders') {
-    if (bookOrders.length === 0 && !loading) {
-      fetchBookOrders();
-    }
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="container">
+          <div className="loading-container">
+            <FiBarChart2 className="spinner-icon" />
+            <p>Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h2 style={{ color: '#212529', fontSize: '2rem', fontWeight: '600' }}>Admin Panel</h2>
-        <button
-          onClick={() => navigate('/admin/books')}
-          className="btn btn-primary"
-        >
-          📚 Manage Books
-        </button>
-      </div>
-      <div className="tabs">
-        <button
-          onClick={() => setActiveTab('orders')}
-          className={`tab ${activeTab === 'orders' ? 'active' : ''}`}
-        >
-          Publisher Orders
-        </button>
-        <button
-          onClick={() => setActiveTab('reports')}
-          className={`tab ${activeTab === 'reports' ? 'active' : ''}`}
-        >
-          Reports
-        </button>
-      </div>
-
-      {activeTab === 'orders' && (
-        <div>
-          <h3 style={{ color: '#495057', marginBottom: '1.5rem', fontWeight: '600' }}>Publisher Orders</h3>
-          {loading ? (
-            <div className="loading">Loading...</div>
-          ) : (
-            <div>
-              {bookOrders.length === 0 ? (
-                <div className="empty-state">
-                  <p>No publisher orders found.</p>
-                </div>
-              ) : (
-                <div className="table-container">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Order ID</th>
-                        <th>Book</th>
-                        <th>Publisher</th>
-                        <th>Quantity</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bookOrders.map((order) => (
-                        <tr key={order.order_id}>
-                          <td>{order.order_id}</td>
-                          <td>{order.title}</td>
-                          <td>{order.publisher_name}</td>
-                          <td>{order.quantity}</td>
-                          <td>{new Date(order.order_date).toLocaleDateString()}</td>
-                          <td>{order.order_status}</td>
-                          <td>
-                            {order.order_status === 'Pending' && (
-                              <button
-                                onClick={() => handleConfirmOrder(order.order_id)}
-                                className="btn btn-success"
-                              >
-                                Confirm
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
+    <div className="page-container">
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">Admin Dashboard</h1>
+          <p className="page-subtitle">Manage your bookstore</p>
         </div>
-      )}
 
-      {activeTab === 'reports' && (
-        <div>
-          <h3 style={{ color: '#495057', marginBottom: '1.5rem', fontWeight: '600' }}>Reports</h3>
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-            <button onClick={() => fetchReports('lastMonth')} className="btn btn-primary">
-              📊 Sales Last Month
-            </button>
-            <button onClick={() => fetchReports('topCustomers')} className="btn btn-primary">
-              👥 Top 5 Customers
-            </button>
-            <button onClick={() => fetchReports('topBooks')} className="btn btn-primary">
-              📚 Top 10 Books
-            </button>
+        {error && <div className="error-message">{error}</div>}
+
+        <div className="admin-grid">
+          <div className="admin-card glass-card fade-in">
+            <div className="admin-card-header">
+              <FiDollarSign className="admin-card-icon" />
+              <h3>Sales Last Month</h3>
+            </div>
+            <div className="admin-card-value">
+              ${parseFloat(stats.salesLastMonth).toFixed(2)}
+            </div>
           </div>
 
-          {reports.lastMonth && (
-            <div className="card">
-              <h4 style={{ marginBottom: '1rem', color: '#212529' }}>Sales Last Month</h4>
-              <p style={{ fontSize: '1.5rem', color: '#0066cc', fontWeight: 'bold' }}>Total Sales: ${reports.lastMonth.totalSales || 0}</p>
+          <Link to="/admin/books" className="admin-card glass-card fade-in">
+            <div className="admin-card-header">
+              <FiBook className="admin-card-icon" />
+              <h3>Manage Books</h3>
             </div>
-          )}
+            <p className="admin-card-description">Add, edit, and manage book inventory</p>
+          </Link>
 
-          {reports.topCustomers && (
-            <div className="table-container">
-              <h4 style={{ marginBottom: '1rem', color: '#333' }}>Top 5 Customers (Last 3 Months)</h4>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Customer</th>
-                    <th>Total Purchases</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.topCustomers.map((customer, idx) => (
-                    <tr key={idx}>
-                      <td>{customer.first_name} {customer.last_name} ({customer.email})</td>
-                      <td style={{ fontWeight: 'bold', color: '#0066cc' }}>${customer.total_purchases}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <Link to="/admin/book-orders" className="admin-card glass-card fade-in">
+            <div className="admin-card-header">
+              <FiPackage className="admin-card-icon" />
+              <h3>Book Orders</h3>
             </div>
-          )}
-
-          {reports.topBooks && (
-            <div className="table-container">
-              <h4 style={{ marginBottom: '1rem', color: '#333' }}>Top 10 Selling Books (Last 3 Months)</h4>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Book</th>
-                    <th>Total Sold</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.topBooks.map((book, idx) => (
-                    <tr key={idx}>
-                      <td>{book.title} (ISBN: {book.isbn})</td>
-                      <td style={{ fontWeight: 'bold', color: '#0066cc' }}>{book.total_sold} copies</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+            <p className="admin-card-description">View and confirm publisher orders</p>
+          </Link>
         </div>
-      )}
+
+        <div className="admin-sections">
+          <div className="admin-section glass-strong fade-in">
+            <h2 className="section-title">
+              <FiTrendingUp />
+              Top Customers (Last 3 Months)
+            </h2>
+            {stats.topCustomers.length === 0 ? (
+              <p className="empty-text">No customer data available</p>
+            ) : (
+              <div className="top-list">
+                {stats.topCustomers.map((customer, index) => (
+                  <div key={customer.user_id} className="top-item">
+                    <div className="top-rank">#{index + 1}</div>
+                    <div className="top-info">
+                      <div className="top-name">
+                        {customer.first_name} {customer.last_name}
+                      </div>
+                      <div className="top-email">{customer.email}</div>
+                    </div>
+                    <div className="top-value">
+                      ${parseFloat(customer.total_purchases).toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="admin-section glass-strong fade-in">
+            <h2 className="section-title">
+              <FiBook />
+              Top Selling Books (Last 3 Months)
+            </h2>
+            {stats.topBooks.length === 0 ? (
+              <p className="empty-text">No book sales data available</p>
+            ) : (
+              <div className="top-list">
+                {stats.topBooks.map((book, index) => (
+                  <div key={book.isbn} className="top-item">
+                    <div className="top-rank">#{index + 1}</div>
+                    <div className="top-info">
+                      <div className="top-name">{book.title}</div>
+                      <div className="top-isbn">ISBN: {book.isbn}</div>
+                    </div>
+                    <div className="top-value">{book.total_sold} sold</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default AdminPanel;
-

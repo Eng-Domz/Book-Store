@@ -1,67 +1,118 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ordersAPI } from '../services/api';
+import { FiPackage, FiCalendar, FiDollarSign, FiBook } from 'react-icons/fi';
+import './Orders.css';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const location = useLocation();
 
   useEffect(() => {
     fetchOrders();
+    
+    if (location.state?.message) {
+      setTimeout(() => {
+        // Clear message after showing
+        window.history.replaceState({}, document.title);
+      }, 5000);
+    }
   }, []);
 
   const fetchOrders = async () => {
     try {
       const response = await ordersAPI.getPastOrders();
-      setOrders(response.data.orders);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
+      setOrders(response.data.orders || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load orders');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div>Loading orders...</div>;
-
-  if (orders.length === 0) {
+  if (loading) {
     return (
-      <div className="container">
-        <div className="empty-state">
-          <h2>No Orders Yet</h2>
-          <p>You haven't placed any orders yet.</p>
+      <div className="page-container">
+        <div className="container">
+          <div className="loading-container">
+            <FiPackage className="spinner-icon" />
+            <p>Loading orders...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <h2 style={{ color: '#212529', marginBottom: '2rem', fontSize: '2rem', fontWeight: '600' }}>My Orders</h2>
-      {orders.map((order) => (
-        <div key={order.order_id} className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #f0f0f0' }}>
-            <div>
-              <h3 style={{ color: '#333', marginBottom: '0.5rem' }}>Order #{order.order_id}</h3>
-              <p style={{ color: '#666' }}>Date: {new Date(order.order_date).toLocaleString()}</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <h3 style={{ color: '#0066cc', fontSize: '1.5rem', fontWeight: '600' }}>${order.total_price}</h3>
-            </div>
+    <div className="page-container">
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">My Orders</h1>
+          <p className="page-subtitle">View your order history</p>
+        </div>
+
+        {location.state?.message && (
+          <div className="success-message">{location.state.message}</div>
+        )}
+
+        {error && <div className="error-message">{error}</div>}
+
+        {orders.length === 0 ? (
+          <div className="empty-state">
+            <FiPackage className="empty-state-icon" />
+            <p className="empty-state-text">No orders yet</p>
+            <p className="empty-state-subtext">Start shopping to see your orders here</p>
           </div>
-          <div>
-            <h4 style={{ marginBottom: '1rem', color: '#333' }}>Items:</h4>
-            {order.items.map((item, idx) => (
-              <div key={idx} style={{ padding: '1rem', backgroundColor: '#f8f9fa', marginBottom: '0.75rem', borderRadius: '8px' }}>
-                <p style={{ fontWeight: '600', marginBottom: '0.5rem' }}><strong>{item.title}</strong> (ISBN: {item.isbn})</p>
-                <p style={{ color: '#6c757d' }}>Quantity: {item.quantity} × ${item.price_at_purchase} = <strong style={{ color: '#0066cc' }}>${item.item_total}</strong></p>
-                {item.authors && <p style={{ color: '#666', fontSize: '0.9rem' }}>Authors: {item.authors}</p>}
+        ) : (
+          <div className="orders-list">
+            {orders.map((order) => (
+              <div key={order.order_id} className="order-card glass-card fade-in">
+                <div className="order-header">
+                  <div className="order-id">
+                    <FiPackage />
+                    <span>Order #{order.order_id}</span>
+                  </div>
+                  <div className="order-date">
+                    <FiCalendar />
+                    <span>{new Date(order.order_date).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                <div className="order-items-list">
+                  {order.items.map((item, index) => (
+                    <div key={index} className="order-item-row">
+                      <div className="order-item-info">
+                        <FiBook className="order-item-icon" />
+                        <div>
+                          <div className="order-item-title">{item.title}</div>
+                          <div className="order-item-meta">
+                            {item.authors && <span>by {item.authors}</span>}
+                            <span>Qty: {item.quantity}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="order-item-price">
+                        ${parseFloat(item.item_total).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="order-footer">
+                  <div className="order-total">
+                    <FiDollarSign />
+                    <span>Total: ${parseFloat(order.total_price).toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      ))}
+        )}
+      </div>
     </div>
   );
 };
 
 export default Orders;
-

@@ -1,117 +1,206 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { booksAPI } from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import { FiSearch, FiBook, FiShoppingCart, FiLoader } from 'react-icons/fi';
+import './BookSearch.css';
 
 const BookSearch = () => {
   const [searchParams, setSearchParams] = useState({
-    isbn: '',
     title: '',
+    isbn: '',
     category: '',
     author: '',
-    publisher: '',
+    publisher: ''
   });
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [error, setError] = useState('');
+
+  const categories = ['Science', 'Art', 'Religion', 'History', 'Geography'];
 
   const handleChange = (e) => {
-    setSearchParams({ ...searchParams, [e.target.name]: e.target.value });
+    setSearchParams({
+      ...searchParams,
+      [e.target.name]: e.target.value
+    });
   };
 
   const handleSearch = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
+
     try {
-      const response = await booksAPI.search(searchParams);
-      setBooks(response.data.books);
-    } catch (error) {
-      console.error('Search error:', error);
-      alert('Failed to search books');
+      const params = Object.fromEntries(
+        Object.entries(searchParams).filter(([_, value]) => value !== '')
+      );
+      
+      const response = await booksAPI.search(params);
+      setBooks(response.data.books || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to search books');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewBook = (isbn) => {
-    navigate(`/books/${isbn}`);
+  const handleClear = () => {
+    setSearchParams({
+      title: '',
+      isbn: '',
+      category: '',
+      author: '',
+      publisher: ''
+    });
+    setBooks([]);
   };
 
   return (
-    <div className="container">
-      <h2 style={{ color: '#212529', marginBottom: '1.5rem', fontSize: '2rem', fontWeight: '600' }}>Search Books</h2>
-      <form onSubmit={handleSearch} className="search-form">
-        <input
-          type="text"
-          name="isbn"
-          placeholder="ISBN"
-          value={searchParams.isbn}
-          onChange={handleChange}
-        />
-        <input
-          type="text"
-          name="title"
-          placeholder="Title"
-          value={searchParams.title}
-          onChange={handleChange}
-        />
-        <select
-          name="category"
-          value={searchParams.category}
-          onChange={handleChange}
-        >
-          <option value="">All Categories</option>
-          <option value="Science">Science</option>
-          <option value="Art">Art</option>
-          <option value="Religion">Religion</option>
-          <option value="History">History</option>
-          <option value="Geography">Geography</option>
-        </select>
-        <input
-          type="text"
-          name="author"
-          placeholder="Author"
-          value={searchParams.author}
-          onChange={handleChange}
-        />
-        <input
-          type="text"
-          name="publisher"
-          placeholder="Publisher"
-          value={searchParams.publisher}
-          onChange={handleChange}
-        />
-        <button type="submit" disabled={loading} className="btn btn-primary">
-          {loading ? 'Searching...' : '🔍 Search'}
-        </button>
-      </form>
+    <div className="page-container">
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">Discover Books</h1>
+          <p className="page-subtitle">Search through our extensive collection</p>
+        </div>
 
-      {books.length > 0 && (
-        <div>
-          <h3 style={{ color: '#495057', marginBottom: '1rem', fontSize: '1.25rem', fontWeight: '600' }}>Results ({books.length})</h3>
-          <div className="grid grid-2">
-            {books.map((book) => (
-              <div key={book.isbn} className="book-card">
-                <h4>{book.title}</h4>
-                <p><strong>ISBN:</strong> {book.isbn}</p>
-                <p><strong>Authors:</strong> {book.authors || 'N/A'}</p>
-                <p><strong>Category:</strong> {book.category}</p>
-                <p><strong>Price:</strong> <span style={{ color: '#0066cc', fontWeight: 'bold', fontSize: '1.1rem' }}>${book.price}</span></p>
-                <p><strong>Stock:</strong> {book.stock_quantity} {book.available ? '✅ Available' : '❌ Out of Stock'}</p>
-                <button
-                  onClick={() => handleViewBook(book.isbn)}
-                  className="btn btn-primary"
-                  style={{ width: '100%', marginTop: '1rem' }}
-                >
-                  View Details
-                </button>
+        <div className="search-card glass-strong fade-in">
+          <form onSubmit={handleSearch} className="search-form">
+            <div className="search-grid">
+              <div className="input-group">
+                <label className="input-label">
+                  <FiBook /> Title
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  className="input"
+                  placeholder="Enter book title"
+                  value={searchParams.title}
+                  onChange={handleChange}
+                />
               </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  <FiBook /> ISBN
+                </label>
+                <input
+                  type="text"
+                  name="isbn"
+                  className="input"
+                  placeholder="Enter ISBN"
+                  value={searchParams.isbn}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  <FiBook /> Category
+                </label>
+                <select
+                  name="category"
+                  className="input"
+                  value={searchParams.category}
+                  onChange={handleChange}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  <FiBook /> Author
+                </label>
+                <input
+                  type="text"
+                  name="author"
+                  className="input"
+                  placeholder="Enter author name"
+                  value={searchParams.author}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  <FiBook /> Publisher
+                </label>
+                <input
+                  type="text"
+                  name="publisher"
+                  className="input"
+                  placeholder="Enter publisher name"
+                  value={searchParams.publisher}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="search-actions">
+              <button type="submit" className="btn btn-primary">
+                <FiSearch />
+                Search
+              </button>
+              <button type="button" onClick={handleClear} className="btn btn-secondary">
+                Clear
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {error && <div className="error-message">{error}</div>}
+
+        {loading ? (
+          <div className="loading-container">
+            <FiLoader className="spinner-icon" />
+            <p>Searching books...</p>
+          </div>
+        ) : books.length > 0 ? (
+          <div className="books-grid">
+            {books.map((book) => (
+              <BookCard key={book.isbn} book={book} />
             ))}
           </div>
+        ) : books.length === 0 && Object.values(searchParams).some(v => v) ? (
+          <div className="empty-state">
+            <FiBook className="empty-state-icon" />
+            <p className="empty-state-text">No books found</p>
+            <p className="empty-state-subtext">Try adjusting your search criteria</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+const BookCard = ({ book }) => {
+  return (
+    <div className="book-card glass-card fade-in">
+      <div className="book-info">
+        <div className="book-header">
+          <div className={`book-badge ${book.available ? 'available' : 'unavailable'}`}>
+            {book.available ? 'Available' : 'Out of Stock'}
+          </div>
         </div>
-      )}
+        <h3 className="book-title">{book.title}</h3>
+        <p className="book-authors">by {book.authors || 'Unknown'}</p>
+        <div className="book-meta">
+          <span className="book-category">{book.category}</span>
+          <span className="book-year">{book.publication_year}</span>
+        </div>
+        <div className="book-footer">
+          <div className="book-price">${parseFloat(book.price).toFixed(2)}</div>
+          <Link to={`/books/${book.isbn}`} className="btn btn-accent btn-sm">
+            View Details
+          </Link>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default BookSearch;
-

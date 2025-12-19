@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { cartAPI } from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import { 
+  FiShoppingCart, 
+  FiTrash2, 
+  FiPlus, 
+  FiMinus, 
+  FiArrowRight,
+  FiBook
+} from 'react-icons/fi';
+import './Cart.css';
 
 const Cart = () => {
-  const [cart, setCart] = useState(null);
+  const [cart, setCart] = useState({ cartItems: [], total: '0.00' });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -15,8 +25,8 @@ const Cart = () => {
     try {
       const response = await cartAPI.view();
       setCart(response.data);
-    } catch (error) {
-      console.error('Error fetching cart:', error);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load cart');
     } finally {
       setLoading(false);
     }
@@ -26,79 +36,118 @@ const Cart = () => {
     try {
       await cartAPI.remove(isbn);
       fetchCart();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to remove item');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to remove item');
     }
   };
 
-  const handleUpdateQuantity = async (isbn, newQuantity) => {
-    if (newQuantity < 1) return;
+  const handleUpdateQuantity = async (isbn, quantity) => {
+    if (quantity < 1) return;
+    
     try {
-      await cartAPI.updateQuantity(isbn, newQuantity);
+      await cartAPI.updateQuantity(isbn, quantity);
       fetchCart();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Failed to update quantity');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update quantity');
     }
   };
 
-  if (loading) return <div>Loading cart...</div>;
-
-  if (!cart || cart.cartItems.length === 0) {
+  if (loading) {
     return (
-      <div className="container">
-        <div className="empty-state">
-          <h2>Your Cart is Empty</h2>
-          <p>Start shopping to add items to your cart!</p>
-          <button onClick={() => navigate('/')} className="btn btn-primary">
-            Browse Books
-          </button>
+      <div className="page-container">
+        <div className="container">
+          <div className="loading-container">
+            <FiShoppingCart className="spinner-icon" />
+            <p>Loading cart...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <h2 style={{ color: '#212529', marginBottom: '2rem', fontSize: '2rem', fontWeight: '600' }}>Shopping Cart</h2>
-      <div style={{ marginBottom: '2rem' }}>
-        {cart.cartItems.map((item) => (
-          <div key={item.isbn} className="cart-item">
-            <div className="cart-item-info">
-              <h4>{item.title}</h4>
-              <p>ISBN: {item.isbn}</p>
-              <p>Authors: {item.authors || 'N/A'}</p>
-              <p>Price: ${item.price} each</p>
+    <div className="page-container">
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">Shopping Cart</h1>
+          <p className="page-subtitle">Review your items</p>
+        </div>
+
+        {error && <div className="error-message">{error}</div>}
+
+        {cart.cartItems.length === 0 ? (
+          <div className="empty-state">
+            <FiShoppingCart className="empty-state-icon" />
+            <p className="empty-state-text">Your cart is empty</p>
+            <p className="empty-state-subtext">Start adding books to your cart</p>
+            <Link to="/" className="btn btn-primary">
+              Browse Books
+            </Link>
+          </div>
+        ) : (
+          <div className="cart-content">
+            <div className="cart-items">
+              {cart.cartItems.map((item) => (
+                <div key={item.isbn} className="cart-item glass-card fade-in">
+                  <div className="cart-item-info">
+                    <h3 className="cart-item-title">{item.title}</h3>
+                    <p className="cart-item-authors">by {item.authors || 'Unknown'}</p>
+                    <div className="cart-item-price">${parseFloat(item.price).toFixed(2)} each</div>
+                  </div>
+
+                  <div className="cart-item-quantity">
+                    <button
+                      onClick={() => handleUpdateQuantity(item.isbn, item.quantity - 1)}
+                      className="quantity-btn"
+                    >
+                      <FiMinus />
+                    </button>
+                    <span className="quantity-value">{item.quantity}</span>
+                    <button
+                      onClick={() => handleUpdateQuantity(item.isbn, item.quantity + 1)}
+                      className="quantity-btn"
+                    >
+                      <FiPlus />
+                    </button>
+                  </div>
+
+                  <div className="cart-item-total">
+                    ${parseFloat(item.item_total).toFixed(2)}
+                  </div>
+
+                  <button
+                    onClick={() => handleRemove(item.isbn)}
+                    className="cart-item-remove"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </div>
+              ))}
             </div>
-            <div className="cart-item-actions">
-              <div className="quantity-controls">
-                <button onClick={() => handleUpdateQuantity(item.isbn, item.quantity - 1)}>-</button>
-                <span>{item.quantity}</span>
-                <button onClick={() => handleUpdateQuantity(item.isbn, item.quantity + 1)}>+</button>
+
+            <div className="cart-summary glass-strong">
+              <h2 className="summary-title">Order Summary</h2>
+              <div className="summary-row">
+                <span>Subtotal:</span>
+                <span>${parseFloat(cart.total).toFixed(2)}</span>
               </div>
-              <p style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#0066cc' }}>${item.item_total}</p>
+              <div className="summary-row total">
+                <span>Total:</span>
+                <span>${parseFloat(cart.total).toFixed(2)}</span>
+              </div>
               <button
-                onClick={() => handleRemove(item.isbn)}
-                className="btn btn-danger"
+                onClick={() => navigate('/checkout')}
+                className="btn btn-primary btn-full checkout-btn"
               >
-                Remove
+                Proceed to Checkout
+                <FiArrowRight />
               </button>
             </div>
           </div>
-        ))}
-      </div>
-      <div className="card" style={{ textAlign: 'right' }}>
-        <h3 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#212529' }}>Total: <span style={{ color: '#0066cc' }}>${cart.total}</span></h3>
-        <button
-          onClick={() => navigate('/checkout')}
-          className="btn btn-success"
-          style={{ padding: '1rem 3rem', fontSize: '1.1rem' }}
-        >
-          Proceed to Checkout →
-        </button>
+        )}
       </div>
     </div>
   );
 };
 
 export default Cart;
-

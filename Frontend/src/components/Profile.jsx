@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiSave, FiEdit2 } from 'react-icons/fi';
+import './Profile.css';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, getProfile } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    address: '',
-    password: '',
-    confirmPassword: '',
+    address: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -23,175 +25,207 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const response = await authAPI.getProfile();
-      const userData = response.data.user;
+      const profile = await getProfile();
       setFormData({
-        firstName: userData.first_name || '',
-        lastName: userData.last_name || '',
-        email: userData.email || '',
-        phone: userData.phone || '',
-        address: userData.address || '',
-        password: '',
-        confirmPassword: '',
+        firstName: profile.first_name || '',
+        lastName: profile.last_name || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
+        address: profile.address || ''
       });
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      alert('Failed to load profile');
+    } catch (err) {
+      setError('Failed to load profile');
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
     setSaving(true);
-    setMessage('');
-
-    // Validate password if provided
-    if (formData.password) {
-      if (formData.password !== formData.confirmPassword) {
-        setMessage('Passwords do not match');
-        setSaving(false);
-        return;
-      }
-      if (formData.password.length < 6) {
-        setMessage('Password must be at least 6 characters');
-        setSaving(false);
-        return;
-      }
-    }
 
     try {
-      const updateData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-      };
-
-      if (formData.password) {
-        updateData.password = formData.password;
-      }
-
-      await authAPI.updateProfile(updateData);
-      setMessage('Profile updated successfully!');
-      
-      // Clear password fields
-      setFormData({ ...formData, password: '', confirmPassword: '' });
-      
-      // Refresh profile
-      setTimeout(() => {
-        fetchProfile();
-      }, 1000);
-    } catch (error) {
-      setMessage(error.response?.data?.error || 'Failed to update profile');
+      await authAPI.updateProfile(formData);
+      await fetchProfile();
+      setSuccess('Profile updated successfully!');
+      setEditing(false);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="loading">Loading profile...</div>;
+  if (loading) {
+    return (
+      <div className="page-container">
+        <div className="container">
+          <div className="loading-container">
+            <FiUser className="spinner-icon" />
+            <p>Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container">
-      <div className="form-container">
-        <h2 style={{ marginBottom: '1.5rem', color: '#333', textAlign: 'center' }}>Edit Profile</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>First Name:</label>
-            <input
-              type="text"
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Last Name:</label>
-            <input
-              type="text"
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Email:</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Phone:</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Address:</label>
-            <input
-              type="text"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          
-          <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e0e0e0' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#333' }}>Change Password (Optional)</h3>
-            <div className="form-group">
-              <label>New Password:</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Leave blank to keep current password"
-              />
+    <div className="page-container">
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">My Profile</h1>
+          <p className="page-subtitle">Manage your account information</p>
+        </div>
+
+        {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
+
+        <div className="profile-card glass-strong fade-in">
+          <div className="profile-header">
+            <div className="profile-avatar">
+              <FiUser />
             </div>
-            {formData.password && (
-              <div className="form-group">
-                <label>Confirm New Password:</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm new password"
-                />
-              </div>
+            <h2 className="profile-name">
+              {user?.first_name} {user?.last_name}
+            </h2>
+            <p className="profile-email">{user?.email}</p>
+            {user?.user_type === 'ADMIN' && (
+              <span className="admin-badge">Administrator</span>
             )}
           </div>
 
-          {message && (
-            <div className={message.includes('success') ? 'alert alert-success' : 'alert alert-error'}>
-              {message}
+          <form onSubmit={handleSubmit} className="profile-form">
+            <div className="form-row">
+              <div className="input-group">
+                <label className="input-label">
+                  <FiUser /> First Name
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  className="input"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  disabled={!editing}
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">
+                  <FiUser /> Last Name
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  className="input"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  disabled={!editing}
+                  required
+                />
+              </div>
             </div>
-          )}
-          <button type="submit" disabled={saving} className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-            {saving ? 'Saving...' : '💾 Update Profile'}
-          </button>
-        </form>
+
+            <div className="input-group">
+              <label className="input-label">
+                <FiMail /> Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                className="input"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={!editing}
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">
+                <FiPhone /> Phone
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                className="input"
+                value={formData.phone}
+                onChange={handleChange}
+                disabled={!editing}
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label">
+                <FiMapPin /> Address
+              </label>
+              <input
+                type="text"
+                name="address"
+                className="input"
+                value={formData.address}
+                onChange={handleChange}
+                disabled={!editing}
+                required
+              />
+            </div>
+
+            <div className="profile-actions">
+              {editing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(false);
+                      fetchProfile();
+                    }}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <div className="spinner" style={{ width: '20px', height: '20px', margin: '0' }} />
+                    ) : (
+                      <>
+                        <FiSave />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="btn btn-primary"
+                >
+                  <FiEdit2 />
+                  Edit Profile
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
 };
 
 export default Profile;
-

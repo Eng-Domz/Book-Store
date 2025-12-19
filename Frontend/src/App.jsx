@@ -1,5 +1,7 @@
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Navigation from './components/Navigation';
+import Footer from './components/Footer';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import BookSearch from './components/BookSearch';
@@ -9,53 +11,12 @@ import Checkout from './components/Checkout';
 import Orders from './components/Orders';
 import AdminPanel from './components/AdminPanel';
 import AdminBooks from './components/AdminBooks';
+import BookOrders from './components/BookOrders';
 import AddBook from './components/AddBook';
 import EditBook from './components/EditBook';
 import Profile from './components/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
-
-const Navigation = () => {
-  const { user, logout, isAdmin } = useAuth();
-
-  return (
-    <nav>
-      <div>
-        <div>
-          <Link to="/" style={{ fontSize: '24px', fontWeight: 'bold' }}>
-            📚 BookStore
-          </Link>
-        </div>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          {user ? (
-            <>
-              <Link to="/">🔍 Search Books</Link>
-              <Link to="/cart">🛒 Cart</Link>
-              <Link to="/orders">📦 My Orders</Link>
-              <Link to="/profile">👤 Profile</Link>
-              {isAdmin() && (
-                <Link to="/admin">⚙️ Admin</Link>
-              )}
-              <span style={{ color: '#495057', fontWeight: '500', fontSize: '0.95rem' }}>Welcome, {user.first_name}</span>
-              <button
-                onClick={logout}
-                className="btn btn-danger"
-                style={{ padding: '0.5rem 1rem' }}
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login">Login</Link>
-              <Link to="/signup">Sign Up</Link>
-            </>
-          )}
-        </div>
-      </div>
-    </nav>
-  );
-};
 
 function App() {
   return (
@@ -146,8 +107,17 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/book-orders"
+              element={
+                <ProtectedRoute adminOnly>
+                  <BookOrders />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <Footer />
         </div>
       </Router>
     </AuthProvider>
