@@ -1,58 +1,69 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { booksAPI } from '../services/api';
-import { FiSearch, FiBook, FiShoppingCart, FiLoader } from 'react-icons/fi';
+import { FiSearch, FiBook, FiFilter, FiX, FiLoader } from 'react-icons/fi';
 import './BookSearch.css';
 
 const BookSearch = () => {
-  const [searchParams, setSearchParams] = useState({
-    title: '',
-    isbn: '',
-    category: '',
-    author: '',
-    publisher: ''
-  });
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [allBooks, setAllBooks] = useState([]);
+  const [filteredBooks, setFilteredBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const categories = ['Science', 'Art', 'Religion', 'History', 'Geography'];
 
-  const handleChange = (e) => {
-    setSearchParams({
-      ...searchParams,
-      [e.target.name]: e.target.value
-    });
-  };
+  // Load all books on initial page load
+  useEffect(() => {
+    loadAllBooks();
+  }, []);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  // Filter books whenever search query or category changes
+  useEffect(() => {
+    filterBooks();
+  }, [searchQuery, selectedCategory, allBooks]);
+
+  const loadAllBooks = async () => {
     setLoading(true);
     setError('');
-
     try {
-      const params = Object.fromEntries(
-        Object.entries(searchParams).filter(([_, value]) => value !== '')
-      );
-      
-      const response = await booksAPI.search(params);
-      setBooks(response.data.books || []);
+      const response = await booksAPI.search({});
+      const books = response.data.books || [];
+      setAllBooks(books);
+      setFilteredBooks(books);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to search books');
+      setError(err.response?.data?.error || 'Failed to load books');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClear = () => {
-    setSearchParams({
-      title: '',
-      isbn: '',
-      category: '',
-      author: '',
-      publisher: ''
-    });
-    setBooks([]);
+  const filterBooks = () => {
+    let results = allBooks;
+
+    // Filter by search query (matches title, author, ISBN, publisher)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      results = results.filter(book =>
+        book.title?.toLowerCase().includes(query) ||
+        book.authors?.toLowerCase().includes(query) ||
+        book.isbn?.toLowerCase().includes(query) ||
+        book.publisher_name?.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by category
+    if (selectedCategory) {
+      results = results.filter(book => book.category === selectedCategory);
+    }
+
+    setFilteredBooks(results);
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('');
   };
 
   return (
@@ -63,93 +74,56 @@ const BookSearch = () => {
           <p className="page-subtitle">Search through our extensive collection</p>
         </div>
 
-        <div className="search-card glass-strong fade-in">
-          <form onSubmit={handleSearch} className="search-form">
-            <div className="search-grid">
-              <div className="input-group">
-                <label className="input-label">
-                  <FiBook /> Title
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  className="input"
-                  placeholder="Enter book title"
-                  value={searchParams.title}
-                  onChange={handleChange}
-                />
-              </div>
+        <div className="search-section fade-in">
+          <div className="search-bar-container glass-strong">
+            <FiSearch className="search-bar-icon" />
+            <input
+              type="text"
+              className="search-bar-input"
+              placeholder="Search by title, author, ISBN, or publisher..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button 
+                className="search-clear-btn"
+                onClick={() => setSearchQuery('')}
+              >
+                <FiX />
+              </button>
+            )}
+          </div>
 
-              <div className="input-group">
-                <label className="input-label">
-                  <FiBook /> ISBN
-                </label>
-                <input
-                  type="text"
-                  name="isbn"
-                  className="input"
-                  placeholder="Enter ISBN"
-                  value={searchParams.isbn}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">
-                  <FiBook /> Category
-                </label>
-                <select
-                  name="category"
-                  className="input"
-                  value={searchParams.category}
-                  onChange={handleChange}
+          <div className="filter-row">
+            <div className="category-filters">
+              <button
+                className={`filter-btn ${selectedCategory === '' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('')}
+              >
+                All
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  className={`filter-btn ${selectedCategory === cat ? 'active' : ''}`}
+                  onClick={() => setSelectedCategory(cat)}
                 >
-                  <option value="">All Categories</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">
-                  <FiBook /> Author
-                </label>
-                <input
-                  type="text"
-                  name="author"
-                  className="input"
-                  placeholder="Enter author name"
-                  value={searchParams.author}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">
-                  <FiBook /> Publisher
-                </label>
-                <input
-                  type="text"
-                  name="publisher"
-                  className="input"
-                  placeholder="Enter publisher name"
-                  value={searchParams.publisher}
-                  onChange={handleChange}
-                />
-              </div>
+                  {cat}
+                </button>
+              ))}
             </div>
+            
+            {(searchQuery || selectedCategory) && (
+              <button className="clear-filters-btn" onClick={handleClearFilters}>
+                <FiX />
+                Clear Filters
+              </button>
+            )}
+          </div>
 
-            <div className="search-actions">
-              <button type="submit" className="btn btn-primary">
-                <FiSearch />
-                Search
-              </button>
-              <button type="button" onClick={handleClear} className="btn btn-secondary">
-                Clear
-              </button>
-            </div>
-          </form>
+          <div className="results-info">
+            <span>{filteredBooks.length} book{filteredBooks.length !== 1 ? 's' : ''} found</span>
+          </div>
         </div>
 
         {error && <div className="error-message">{error}</div>}
@@ -157,21 +131,21 @@ const BookSearch = () => {
         {loading ? (
           <div className="loading-container">
             <FiLoader className="spinner-icon" />
-            <p>Searching books...</p>
+            <p>Loading books...</p>
           </div>
-        ) : books.length > 0 ? (
+        ) : filteredBooks.length > 0 ? (
           <div className="books-grid">
-            {books.map((book) => (
+            {filteredBooks.map((book) => (
               <BookCard key={book.isbn} book={book} />
             ))}
           </div>
-        ) : books.length === 0 && Object.values(searchParams).some(v => v) ? (
+        ) : (
           <div className="empty-state">
             <FiBook className="empty-state-icon" />
             <p className="empty-state-text">No books found</p>
             <p className="empty-state-subtext">Try adjusting your search criteria</p>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

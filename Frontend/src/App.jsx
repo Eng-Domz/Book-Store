@@ -15,6 +15,7 @@ import BookOrders from './components/BookOrders';
 import AddBook from './components/AddBook';
 import EditBook from './components/EditBook';
 import Profile from './components/Profile';
+import Reports from './components/Reports';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -112,6 +113,14 @@ function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <BookOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <ProtectedRoute adminOnly>
+                  <Reports />
                 </ProtectedRoute>
               }
             />

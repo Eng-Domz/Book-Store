@@ -9,7 +9,9 @@ const {
   getSalesByDate,
   getTopCustomers,
   getTopSellingBooks,
-  getBookOrderCount
+  getBookOrderCount,
+  createManualOrder,
+  getBooksForOrdering
 } = require('../controllers/orders.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { adminAuth } = require('../middleware/admin.middleware');
@@ -21,6 +23,8 @@ router.get('/my-orders', authenticate, getPastOrders);
 // Admin routes
 router.get('/book-orders', adminAuth, getAllBookOrders);
 router.put('/book-orders/:orderId/confirm', adminAuth, confirmOrder);
+router.post('/book-orders/manual', adminAuth, createManualOrder);
+router.get('/books-for-ordering', adminAuth, getBooksForOrdering);
 
 // Admin reports
 router.get('/reports/sales/last-month', adminAuth, getSalesLastMonth);

@@ -321,6 +321,55 @@ const getBookOrderCount = async (req, res) => {
   }
 };
 
+// Create manual book order from publisher (Admin only)
+const createManualOrder = async (req, res) => {
+  try {
+    const { isbn, quantity } = req.body;
+
+    if (!isbn || !quantity || quantity <= 0) {
+      return res.status(400).json({ error: 'ISBN and valid quantity are required' });
+    }
+
+    // Check if book exists
+    const [books] = await db.query('SELECT title FROM books WHERE isbn = ?', [isbn]);
+    if (books.length === 0) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    // Create the order
+    const [result] = await db.query(
+      `INSERT INTO publisher_orders (isbn, quantity, order_date, order_status)
+       VALUES (?, ?, NOW(), 'Pending')`,
+      [isbn, quantity]
+    );
+
+    res.status(201).json({
+      message: 'Publisher order created successfully',
+      orderId: result.insertId,
+      bookTitle: books[0].title,
+      quantity
+    });
+  } catch (error) {
+    console.error('Create manual order error:', error);
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+};
+
+// Get all books for dropdown (Admin only)
+const getBooksForOrdering = async (req, res) => {
+  try {
+    const [books] = await db.query(
+      `SELECT isbn, title, stock_quantity, threshold 
+       FROM books 
+       ORDER BY title`
+    );
+    res.json({ books });
+  } catch (error) {
+    console.error('Get books for ordering error:', error);
+    res.status(500).json({ error: 'Failed to get books' });
+  }
+};
+
 module.exports = {
   checkout,
   getPastOrders,
@@ -330,5 +379,7 @@ module.exports = {
   getSalesByDate,
   getTopCustomers,
   getTopSellingBooks,
-  getBookOrderCount
+  getBookOrderCount,
+  createManualOrder,
+  getBooksForOrdering
 };

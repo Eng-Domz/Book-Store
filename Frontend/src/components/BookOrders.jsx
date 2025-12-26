@@ -8,21 +8,42 @@ import {
   FiBook,
   FiCalendar,
   FiArrowLeft,
-  FiLoader
+  FiLoader,
+  FiPlus,
+  FiX
 } from 'react-icons/fi';
 import './BookOrders.css';
 
 const BookOrders = () => {
   const [orders, setOrders] = useState([]);
+  const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [confirming, setConfirming] = useState(null);
+  const [showOrderForm, setShowOrderForm] = useState(false);
+  const [orderForm, setOrderForm] = useState({ isbn: '', quantity: 10 });
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchOrders();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [ordersRes, booksRes] = await Promise.all([
+        ordersAPI.getAllBookOrders(),
+        ordersAPI.getBooksForOrdering()
+      ]);
+      setOrders(ordersRes.data.orders || []);
+      setBooks(booksRes.data.books || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -30,8 +51,33 @@ const BookOrders = () => {
       setOrders(response.data.orders || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load book orders');
+    }
+  };
+
+  const handleCreateOrder = async (e) => {
+    e.preventDefault();
+    if (!orderForm.isbn || !orderForm.quantity || orderForm.quantity <= 0) {
+      setError('Please select a book and enter a valid quantity');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await ordersAPI.createManualOrder({
+        isbn: orderForm.isbn,
+        quantity: parseInt(orderForm.quantity)
+      });
+      setSuccess('Order created successfully!');
+      setShowOrderForm(false);
+      setOrderForm({ isbn: '', quantity: 10 });
+      fetchOrders();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to create order');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -73,13 +119,90 @@ const BookOrders = () => {
           Back to Admin Panel
         </button>
 
-        <div className="page-header">
-          <h1 className="page-title">Book Orders</h1>
-          <p className="page-subtitle">Manage publisher orders</p>
+        <div className="page-header-row">
+          <div className="page-header">
+            <h1 className="page-title">Book Orders</h1>
+            <p className="page-subtitle">Manage publisher orders</p>
+          </div>
+          <button 
+            onClick={() => setShowOrderForm(true)} 
+            className="btn btn-primary"
+          >
+            <FiPlus />
+            Create Order
+          </button>
         </div>
 
         {error && <div className="error-message">{error}</div>}
         {success && <div className="success-message">{success}</div>}
+
+        {showOrderForm && (
+          <div className="order-form-overlay">
+            <div className="order-form-modal glass-strong">
+              <div className="order-form-header">
+                <h2>Create Publisher Order</h2>
+                <button 
+                  onClick={() => setShowOrderForm(false)} 
+                  className="close-btn"
+                >
+                  <FiX />
+                </button>
+              </div>
+              <form onSubmit={handleCreateOrder} className="order-form">
+                <div className="form-group">
+                  <label htmlFor="book">Select Book</label>
+                  <select
+                    id="book"
+                    value={orderForm.isbn}
+                    onChange={(e) => setOrderForm({ ...orderForm, isbn: e.target.value })}
+                    required
+                  >
+                    <option value="">Choose a book...</option>
+                    {books.map((book) => (
+                      <option key={book.isbn} value={book.isbn}>
+                        {book.title} (Stock: {book.stock_quantity}, Threshold: {book.threshold})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="quantity">Quantity to Order</label>
+                  <input
+                    type="number"
+                    id="quantity"
+                    value={orderForm.quantity}
+                    onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })}
+                    min="1"
+                    required
+                  />
+                </div>
+                <div className="form-actions">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowOrderForm(false)} 
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <FiLoader className="spinner-icon" />
+                    ) : (
+                      <>
+                        <FiCheck />
+                        Create Order
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {orders.length === 0 ? (
           <div className="empty-state">
