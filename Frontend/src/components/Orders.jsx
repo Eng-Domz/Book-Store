@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ordersAPI } from '../services/api';
 import { FiPackage, FiCalendar, FiDollarSign, FiBook } from 'react-icons/fi';
@@ -10,18 +10,7 @@ const Orders = () => {
   const [error, setError] = useState('');
   const location = useLocation();
 
-  useEffect(() => {
-    fetchOrders();
-    
-    if (location.state?.message) {
-      setTimeout(() => {
-        // Clear message after showing
-        window.history.replaceState({}, document.title);
-      }, 5000);
-    }
-  }, []);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const response = await ordersAPI.getPastOrders();
       setOrders(response.data.orders || []);
@@ -30,7 +19,17 @@ const Orders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+
+    if (location.state?.message) {
+      setTimeout(() => {
+        window.history.replaceState({}, document.title);
+      }, 5000);
+    }
+  }, [fetchOrders, location.state?.message]);
 
   if (loading) {
     return (

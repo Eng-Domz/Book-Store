@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ordersAPI } from '../services/api';
 import { 
@@ -26,11 +26,7 @@ const BookOrders = () => {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [ordersRes, booksRes] = await Promise.all([
         ordersAPI.getAllBookOrders(),
@@ -43,16 +39,20 @@ const BookOrders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchOrders = async () => {
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const fetchOrders = useCallback(async () => {
     try {
       const response = await ordersAPI.getAllBookOrders();
       setOrders(response.data.orders || []);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load book orders');
     }
-  };
+  }, []);
 
   const handleCreateOrder = async (e) => {
     e.preventDefault();

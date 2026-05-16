@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { booksAPI, cartAPI } from '../services/api';
 import { 
@@ -23,11 +23,7 @@ const BookDetails = () => {
   const [addingToCart, setAddingToCart] = useState(false);
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    fetchBook();
-  }, [isbn]);
-
-  const fetchBook = async () => {
+  const fetchBook = useCallback(async () => {
     try {
       const response = await booksAPI.getByISBN(isbn);
       setBook(response.data.book);
@@ -36,7 +32,11 @@ const BookDetails = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isbn]);
+
+  useEffect(() => {
+    fetchBook();
+  }, [fetchBook]);
 
   const handleAddToCart = async () => {
     if (!book.available || book.stock_quantity < quantity) {

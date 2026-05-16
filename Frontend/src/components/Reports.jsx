@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ordersAPI } from '../services/api';
 import { 
@@ -31,46 +31,39 @@ const Reports = () => {
   const [selectedISBN, setSelectedISBN] = useState('');
   const [books, setBooks] = useState([]);
 
-  useEffect(() => {
-    // Load books for the search dropdown
-    loadBooks();
-  }, []);
-
-  useEffect(() => {
-    // Load data when tab changes
-    loadTabData();
-  }, [activeTab]);
-
-  const loadBooks = async () => {
+  const loadBooks = useCallback(async () => {
     try {
       const response = await ordersAPI.getBooksForOrdering();
       setBooks(response.data.books || []);
-    } catch (err) {
+    } catch {
       console.error('Failed to load books');
     }
-  };
+  }, []);
 
-  const loadTabData = async () => {
+  const loadTabData = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
       switch (activeTab) {
-        case 'monthly':
+        case 'monthly': {
           const monthlyRes = await ordersAPI.getSalesLastMonth();
           setMonthlySales(monthlyRes.data);
           break;
+        }
         case 'daily':
           // Don't auto-load, wait for date selection
           break;
-        case 'customers':
+        case 'customers': {
           const customersRes = await ordersAPI.getTopCustomers();
           setTopCustomers(customersRes.data.topCustomers || []);
           break;
-        case 'books':
+        }
+        case 'books': {
           const booksRes = await ordersAPI.getTopBooks();
           setTopBooks(booksRes.data.topBooks || []);
           break;
+        }
         case 'bookOrders':
           // Don't auto-load, wait for book selection
           break;
@@ -80,7 +73,15 @@ const Reports = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    loadBooks();
+  }, [loadBooks]);
+
+  useEffect(() => {
+    loadTabData();
+  }, [loadTabData]);
 
   const handleDateSearch = async () => {
     if (!selectedDate) {

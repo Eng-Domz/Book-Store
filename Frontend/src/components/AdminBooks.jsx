@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { booksAPI } from '../services/api';
 import { FiBook, FiPlus, FiEdit2, FiTrash2, FiLoader, FiArrowLeft, FiSearch } from 'react-icons/fi';
@@ -6,44 +6,40 @@ import './AdminBooks.css';
 
 const AdminBooks = () => {
   const [books, setBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchBooks();
-  }, []);
-
-  useEffect(() => {
-    // Filter books based on search term
-    if (searchTerm.trim() === '') {
-      setFilteredBooks(books);
-    } else {
-      const term = searchTerm.toLowerCase();
-      const filtered = books.filter(book => 
-        book.title.toLowerCase().includes(term) ||
-        book.isbn.toLowerCase().includes(term) ||
-        book.category.toLowerCase().includes(term) ||
-        (book.authors && book.authors.toLowerCase().includes(term))
-      );
-      setFilteredBooks(filtered);
-    }
-  }, [searchTerm, books]);
-
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     try {
       const response = await booksAPI.getAll();
       const booksData = response.data.books || [];
       setBooks(booksData);
-      setFilteredBooks(booksData);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load books');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchBooks();
+  }, [fetchBooks]);
+
+  const filteredBooks = useMemo(() => {
+    if (searchTerm.trim() === '') {
+      return books;
+    }
+
+    const term = searchTerm.toLowerCase();
+    return books.filter(book =>
+      book.title.toLowerCase().includes(term) ||
+      book.isbn.toLowerCase().includes(term) ||
+      book.category.toLowerCase().includes(term) ||
+      (book.authors && book.authors.toLowerCase().includes(term))
+    );
+  }, [searchTerm, books]);
 
   if (loading) {
     return (

@@ -1,6 +1,5 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
@@ -36,7 +35,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     try {
       const response = await authAPI.login({ email, password });
       localStorage.setItem('token', response.data.token);
@@ -48,9 +47,9 @@ export const AuthProvider = ({ children }) => {
         error: error.response?.data?.error || 'Login failed',
       };
     }
-  };
+  }, []);
 
-  const signup = async (userData) => {
+  const signup = useCallback(async (userData) => {
     try {
       const response = await authAPI.signup(userData);
       localStorage.setItem('token', response.data.token);
@@ -62,18 +61,18 @@ export const AuthProvider = ({ children }) => {
         error: error.response?.data?.error || 'Signup failed',
       };
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
-  };
+  }, []);
 
-  const isAdmin = () => {
+  const isAdmin = useCallback(() => {
     return user?.user_type === 'ADMIN';
-  };
+  }, [user?.user_type]);
 
-  const getProfile = async () => {
+  const getProfile = useCallback(async () => {
     try {
       const response = await authAPI.getProfile();
       setUser(response.data.user);
@@ -82,10 +81,20 @@ export const AuthProvider = ({ children }) => {
       console.error('Error fetching profile:', error);
       throw error;
     }
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    login,
+    signup,
+    logout,
+    isAdmin,
+    loading,
+    getProfile
+  }), [user, login, signup, logout, isAdmin, loading, getProfile]);
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isAdmin, loading, getProfile }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

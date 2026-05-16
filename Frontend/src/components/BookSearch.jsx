@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { booksAPI } from '../services/api';
 import { FiSearch, FiBook, FiFilter, FiX, FiLoader } from 'react-icons/fi';
@@ -8,38 +8,30 @@ const BookSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [allBooks, setAllBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const categories = ['Science', 'Art', 'Religion', 'History', 'Geography'];
 
-  // Load all books on initial page load
-  useEffect(() => {
-    loadAllBooks();
-  }, []);
-
-  // Filter books whenever search query or category changes
-  useEffect(() => {
-    filterBooks();
-  }, [searchQuery, selectedCategory, allBooks]);
-
-  const loadAllBooks = async () => {
+  const loadAllBooks = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const response = await booksAPI.search({});
       const books = response.data.books || [];
       setAllBooks(books);
-      setFilteredBooks(books);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load books');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterBooks = () => {
+  useEffect(() => {
+    loadAllBooks();
+  }, [loadAllBooks]);
+
+  const filteredBooks = useMemo(() => {
     let results = allBooks;
 
     // Filter by search query (matches title, author, ISBN, publisher)
@@ -58,8 +50,8 @@ const BookSearch = () => {
       results = results.filter(book => book.category === selectedCategory);
     }
 
-    setFilteredBooks(results);
-  };
+    return results;
+  }, [allBooks, searchQuery, selectedCategory]);
 
   const handleClearFilters = () => {
     setSearchQuery('');

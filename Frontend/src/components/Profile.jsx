@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { FiUser, FiMail, FiPhone, FiMapPin, FiSave, FiEdit2 } from 'react-icons/fi';
@@ -19,11 +19,7 @@ const Profile = () => {
   const [success, setSuccess] = useState('');
   const [editing, setEditing] = useState(false);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const profile = await getProfile();
       setFormData({
@@ -33,12 +29,16 @@ const Profile = () => {
         phone: profile.phone || '',
         address: profile.address || ''
       });
-    } catch (err) {
+    } catch {
       setError('Failed to load profile');
     } finally {
       setLoading(false);
     }
-  };
+  }, [getProfile]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const handleChange = (e) => {
     setFormData({

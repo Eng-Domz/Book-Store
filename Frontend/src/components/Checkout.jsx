@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cartAPI, ordersAPI } from '../services/api';
 import { FiCreditCard, FiCalendar, FiCheck, FiArrowLeft } from 'react-icons/fi';
@@ -15,11 +15,7 @@ const Checkout = () => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchCart();
-  }, []);
-
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     try {
       const response = await cartAPI.view();
       setCart(response.data);
@@ -31,7 +27,11 @@ const Checkout = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
   const handleChange = (e) => {
     let value = e.target.value;

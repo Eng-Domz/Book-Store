@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { booksAPI } from '../services/api';
 import { FiBook, FiSave, FiArrowLeft } from 'react-icons/fi';
@@ -22,11 +22,7 @@ const EditBook = () => {
 
   const categories = ['Science', 'Art', 'Religion', 'History', 'Geography'];
 
-  useEffect(() => {
-    fetchBook();
-  }, [isbn]);
-
-  const fetchBook = async () => {
+  const fetchBook = useCallback(async () => {
     try {
       const response = await booksAPI.getByISBN(isbn);
       const book = response.data.book;
@@ -44,7 +40,11 @@ const EditBook = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isbn]);
+
+  useEffect(() => {
+    fetchBook();
+  }, [fetchBook]);
 
   const handleChange = (e) => {
     setFormData({
